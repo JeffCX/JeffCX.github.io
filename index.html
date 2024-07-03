@@ -1,1 +1,216 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Text Animation with Coin Shape</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let font;
+        let rotationX = 0;
+        let rotationY = 0;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+        let dragging = false;
+        let cols, rows;
+        let scl = 25;
+        let w = 2000;
+        let h = 480;
+        let terrain = [];
+        let wave = 0;
+        let clrR = 255;
+        let clrG = 255;
+        let clrB = 255;
+        let msTX = 0;
+        let scaleFactor = 1;
+
+        function preload() {
+            font = loadFont('https://cdnjs.cloudflare.com/ajax/libs/topcoat/0.8.0/font/SourceCodePro-Bold.otf');
+        }
+
+        function setup() {
+            const canvasWidth = window.innerWidth;
+            const canvasHeight = window.innerHeight;
+            createCanvas(canvasWidth, canvasHeight, WEBGL);
+            textFont(font);
+            textSize(50);
+            textAlign(CENTER, CENTER);
+            cols = w / scl;
+            rows = h / scl;
+            for (let x = 0; x < cols; x++) {
+                terrain[x] = [];
+                for (let y = 0; y < rows; y++) {
+                    terrain[x][y] = 0;
+                }
+            }
+        }
+
+        function draw() {
+            background(0);
+
+            // Calculate distance from mouse to center
+            msTX = abs(mouseX - width / 2);
+
+            if (!dragging) {
+                rotationY += 0.005; // Slow automatic rotation
+            }
+
+            let msX = map(mouseY, width, 0, 0, 3);
+            let msY = map(mouseX, height, 0, 0, 3);
+
+            rotateX(rotationX);
+            rotateY(rotationY);
+
+            // Draw the coin elements with the same rotation as the boxes
+            drawCoinElements(msX, msY);
+
+            // Additional decorations
+            drawDecorations(msX, msY);
+        }
+
+        function drawCoinElements(msX, msY) {
+            fill(255);
+            stroke(0);
+            strokeWeight(2);
+
+            // Draw the text with reduced thickness
+            for (let i = 0; i < 16; i++) {
+                push();
+                translate(0, -7, i); // Adjusted upward by 7 units
+                text('TO', 0, -20);  // Adjusted position for centering
+                text('OT', 0, 20);   // Adjusted position for centering
+                pop();
+            }
+
+            // Draw larger circles and sides
+            for (let i = -8; i <= 8; i += 16) {
+                push();
+                translate(0, 0, i);
+                noFill(); // Remove fill color
+                stroke(255);
+                strokeWeight(1);
+                ellipse(0, 0, 120, 120); // Circle size set to 120
+                pop();
+            }
+
+            // Draw the sides between the circles
+            fill(200, 200, 200, 100); // Semi-transparent light gray for sides
+            noStroke();
+            beginShape(QUAD_STRIP);
+            for (let angle = 0; angle <= TWO_PI; angle += 0.01) {
+                let x = 60 * cos(angle); // Updated to match the new circle size
+                let y = 60 * sin(angle); // Updated to match the new circle size
+                vertex(x, y, -8);
+                vertex(x, y, 8);
+            }
+            endShape(CLOSE);
+        }
+
+        function drawDecorations(msX, msY) {
+            // Dynamic terrain
+            wave += -0.02;
+            let yoff = 0;
+            for (let x = 0; x < cols; x++) {
+                let xoff = wave;
+                for (let y = 0; y < rows; y++) {
+                    terrain[x][y] = map(noise(xoff, yoff), 0, 1, -150, 200);
+                    xoff += 0.1;
+                }
+                yoff += 0.2 + map(noise(0, 0), 0, 1, 0, 5);
+            }
+
+            stroke(clrR, clrG, clrB);
+            strokeWeight(0.5);
+            fill(0);
+            translate(0, 400, 150);
+            rotateX(PI / 2.2);
+            translate(-w / 2, -h / 2);
+            for (let y = 0; y < rows - 1; y++) {
+                beginShape(TRIANGLE_STRIP);
+                for (let x = 0; x < cols; x++) {
+                    vertex(x * scl, y * scl, terrain[x][y]);
+                    vertex(x * scl, (y + 1) * scl, terrain[x][y + 1]);
+                }
+                endShape();
+            }
+
+            // Reset position
+            translate(w / 2, h / 2);
+            rotateX(-PI / 2);
+            translate(0, -400, -150);
+
+            // Move boxes to surround the coin
+            push();
+            translate(-10, 20, -50); // Center around the coin
+            noFill();
+            stroke(clrR, clrG, clrB);
+            translate(0, 0, 0); // Adjust to center on the coin
+            rotateX(frameCount / 180 + msX);
+            rotateY(-frameCount / 120 + msY);
+            scale(scaleFactor); // Apply the scale factor for zooming
+            box(180);
+            box(250 + msTX * 3);
+            //box(220);
+
+            fill(clrR, clrG, clrB, 2);
+            stroke(1, clrG, clrG, 20);
+            box(165);
+            
+            rotateY(PI / 2);
+            rotateZ(PI / 2);
+
+            // Point cloud
+            fill(clrR, clrG, clrB);
+            stroke(clrR, clrG, clrB);
+            strokeWeight(0.3);
+            rotateY((frameCount / 300) * 1 + msY);
+            rotateZ(PI / 4);
+            for (let i = 0; i < 100; i += 3) {
+                for (let o = 0; o < 100; o += 3) {
+                    rotateX(i + o / 5);
+                    rotateY(i / 6);
+                    translate(i, o, i + o * 2 - 200);
+                    rect(
+                        (10 - msTX / 100) / 2,
+                        (10 - msTX / 100) / 2,
+                        (10 - msTX / 100) / 2
+                    );
+                }
+            }
+        }
+
+        function mouseDragged() {
+            dragging = true;
+            let dx = mouseX - prevMouseX;
+            let dy = mouseY - prevMouseY;
+            rotationX += dy * 0.01;
+            rotationY += dx * 0.01;
+            scaleFactor += dy * 0.01; // Adjust the scale factor based on dragging
+            prevMouseX = mouseX;
+            prevMouseY = mouseY;
+        }
+
+        function mousePressed() {
+            prevMouseX = mouseX;
+            prevMouseY = mouseY;
+        }
+
+        function mouseReleased() {
+            dragging = false;
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
